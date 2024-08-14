@@ -4,6 +4,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -12,24 +13,23 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.RecursiveTask;
 
-@Service
+//@Service
 public class SiteCrawler extends RecursiveTask<Set<String>> {
 
-    @Value("${app.connection.userAgent}")
-    private String userAgent;
+    //@Value("${app.connection.userAgent}")
+    private String userAgent = "Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6";
 
-    @Value("${app.connection.referrer}")
-    private String referrer;
+    //@Value("${app.connection.referrer}")
+    private String referrer = "http://www.google.com";
 
     private final String url;
 
     private final Set<String> resltSet = new LinkedHashSet<>();
 
+    @Autowired
     public SiteCrawler(String url) {
         this.url = url;
     }
-
-
 
 
     protected Set<String> connect(){

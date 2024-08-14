@@ -33,4 +33,9 @@ public class ApiController {
     public ResponseEntity<IndexingResponse> startIndexing(){
         return ResponseEntity.ok(indexingService.startIndexing());
     }
+
+    public ResponseEntity<IndexingResponse> stopIndexing(){
+        return ResponseEntity.ok(indexingService.stopIndexing());
+    }
+
 }

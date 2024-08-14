@@ -12,12 +12,12 @@ import javax.transaction.Transactional;
 @Repository
 public interface PageRepository extends JpaRepository<PageEntity, Integer> {
 
-    @Transactional
-    @Modifying
-    @Query(value = "DELETE FROM pages AS p WHERE p.id = `id`;", nativeQuery = true)
-    void deletePageById(@Param("id") Integer id);
-
-    @Query(value = "INSERT INTO `pages` (`id`, `site_id`, `path`, `code`, `content`) " +
-            "values (?1, ?2, ?3, ?4, ?5);")
-    void savePages(int id, int siteId, String path, int code, String content);
+//    @Transactional
+//    @Modifying
+//    @Query(value = "DELETE FROM pages AS p WHERE p.id = `id`;", nativeQuery = true)
+//    void deletePageById(@Param("id") Integer id);
+//
+//    @Query(value = "INSERT INTO `pages` (`id`, `site_id`, `path`, `code`, `content`) " +
+//            "values (?1, ?2, ?3, ?4, ?5);")
+//    void savePages(int id, int siteId, String path, int code, String content);
 }
