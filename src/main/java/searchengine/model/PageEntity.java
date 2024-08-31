@@ -2,8 +2,10 @@ package searchengine.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
 
 import javax.persistence.*;
+import java.util.List;
 
 @Getter
 @Setter
@@ -12,14 +14,21 @@ import javax.persistence.*;
 public class PageEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
+
     @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "site_id", nullable = false)
     private SiteEntity siteEntityId;
-    @Column(name ="path", columnDefinition = "TEXT NOT NULL")
+
+    @Column(name ="path", columnDefinition = "TEXT", nullable = false)
     private String path;
-    @Column(name = "code", columnDefinition = "INT NOT NULL")
+
+    @Column(name = "code", columnDefinition = "INT", nullable = false)
     private Integer code;
-    @Column(name = "content", columnDefinition = "MEDIUMTEXT NOT NULL")
+
+    @Column(name = "content", columnDefinition = "MEDIUMTEXT", nullable = false)
     private String content;
+
+    /*@OneToMany(mappedBy = "page", cascade = CascadeType.ALL)
+    private List<IndexEntity> indices;*/
 }
