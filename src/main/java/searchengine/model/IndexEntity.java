@@ -12,20 +12,21 @@ public class IndexEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
-    @Column(name = "page_id", nullable = false)
-    private Long page;
+    @Column(name = "`page_id`")
+    private Integer pagesId;
 
-    @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name ="lemma_id", nullable = false)
-    private LemmaEntity lemma;
+   /* @ManyToOne
+    @JoinColumn(name = "page_id", columnDefinition = "INT", nullable = false)
+    private PageEntity pageId;*/
 
-    @Column(name = "rank", nullable = false)
-    private Float rank;
+   @ManyToOne
+    @JoinColumn(name ="`lemma_id`", columnDefinition = "INTEGER", nullable = false)
+    private LemmaEntity lemmaId;
 
-      /*  @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name ="page_id", nullable = false)
-    private PageEntity page;*/
+
+    @Column(name = "`rank`", columnDefinition = "float", nullable = false)
+    private float rank;
 
 }

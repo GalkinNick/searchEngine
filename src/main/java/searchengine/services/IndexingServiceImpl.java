@@ -5,12 +5,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
-import searchengine.dto.statistics.IndexingResponse;
-import searchengine.model.LemmaEntity;
-import searchengine.model.PageEntity;
-import searchengine.model.SiteEntity;
-import searchengine.model.Statuses;
+import searchengine.dto.response.IndexingResponse;
+import searchengine.model.*;
 
+import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
@@ -32,6 +30,8 @@ public class IndexingServiceImpl implements IndexingService {
     private PageRepository pageRepository;
     @Autowired
     private LemmaRepository lemmaRepository;
+    @Autowired
+    private IndexRepository indexRepository;
 
     private ForkJoinPool forkJoinPool = new ForkJoinPool();
 
@@ -52,13 +52,13 @@ public class IndexingServiceImpl implements IndexingService {
         try {
             for (Site site : sites.getSites()) {
 
-                SiteEntity siteEntity = new SiteEntity();
 
                 deleteSiteByUrl(site.getUrl());
 
-                createSiteEntity(siteEntity, site, response);
 
-                SiteCrawler siteCrawler = new SiteCrawler(site.getUrl(), pageRepository, siteRepository);
+                SiteEntity siteEntity = createSiteEntity(site, response);
+
+                SiteCrawler siteCrawler = new SiteCrawler(site.getUrl());
 
                 forkJoinPool.submit(siteCrawler);
 
@@ -68,7 +68,7 @@ public class IndexingServiceImpl implements IndexingService {
                 siteCrawler.compute()
                      .forEach(s -> {
                                  try {
-                                     createPageEntity(s,
+                                     PageEntity pageEntity = createPageEntity(s,
                                              siteEntity,
                                              siteCrawler.getHtmlContentFromPage(s),
                                              siteCrawler.getResponseCode(s));
@@ -77,6 +77,7 @@ public class IndexingServiceImpl implements IndexingService {
                                      createLemmaEntity(converting,
                                              siteCrawler,
                                              siteEntity,
+                                             pageEntity,
                                              s);
 
 
@@ -140,6 +141,8 @@ public class IndexingServiceImpl implements IndexingService {
             );
         }
 
+        sites.getSites().clear();
+
         Site site = new Site();
         site.setUrl(url);
         site.setName("Test");
@@ -149,13 +152,13 @@ public class IndexingServiceImpl implements IndexingService {
     }
 
 
-    private void deletePageById(Long id){
+    private void deletePageById(Integer id){
         pageRepository.deleteBySiteId(id);
     }
 
     private void deleteSiteByUrl(String url){
         try{
-            Long siteId = siteRepository.findByUrl(url);
+            Integer siteId = siteRepository.findByUrl(url);
             if (siteId != null) {
                 SiteEntity siteEntity = siteRepository.findById(siteId).get();
                 siteRepository.delete(siteEntity);
@@ -167,7 +170,8 @@ public class IndexingServiceImpl implements IndexingService {
         }
     }
 
-    private void createSiteEntity(SiteEntity siteEntity, Site site, IndexingResponse response){
+    private SiteEntity createSiteEntity(Site site, IndexingResponse response){
+        SiteEntity siteEntity = new SiteEntity();
         siteEntity.setUrl(site.getUrl());
         siteEntity.setName(site.getName());
         siteEntity.setStatus(Statuses.INDEXING);
@@ -175,21 +179,25 @@ public class IndexingServiceImpl implements IndexingService {
         siteEntity.setStatusTime(LocalDateTime.now());
 
         siteRepository.save(siteEntity);
+
+        return  siteEntity;
     }
 
 
-    private void createPageEntity(String path, SiteEntity siteEntity, String htmlContent, int code){
+    private PageEntity createPageEntity(String path, SiteEntity siteEntity, String htmlContent, int code){
         PageEntity pageEntity = new PageEntity();
         pageEntity.setPath(path);
         pageEntity.setSiteEntityId(siteEntity);
         pageEntity.setContent(htmlContent);
         pageEntity.setCode(code);
         pageRepository.save(pageEntity);
+        return pageEntity;
     }
 
     private void createLemmaEntity(ConvertingWordsIntoLemmas converting,
                                    SiteCrawler siteCrawler,
                                    SiteEntity siteEntity,
+                                   PageEntity pageEntity,
                                    String s) throws IOException {
 
         String text = converting.removeHtmlTag(siteCrawler.getHtmlContentFromPage(s));
@@ -200,13 +208,31 @@ public class IndexingServiceImpl implements IndexingService {
                 LemmaEntity lemmaEntity = new LemmaEntity();
                 lemmaEntity.setSite(siteEntity);
                 lemmaEntity.setLemma(lemma);
+               /* if (lemma != lemmaRepository.getLemma(lemma)) {
+                    lemmaEntity.setFrequency(1);
+                } else {
+                    lemmaEntity.setFrequency(1+1);
+                }*/
                 lemmaEntity.setFrequency(1);
                 lemmaRepository.save(lemmaEntity);
+
+                try {
+                    IndexEntity indexEntity = new IndexEntity();
+                    indexEntity.setPagesId(pageEntity.getId());
+                    indexEntity.setLemmaId(lemmaEntity);
+                    indexEntity.setRank((float) lemmasMap.get(lemma));
+
+                    indexRepository.save(indexEntity);
+                }
+                catch (Exception ex){
+                    ex.printStackTrace();
+                    System.out.println("Can`t save index");
+                }
             });
         }
         catch (Exception ex){
             ex.printStackTrace();
-            System.out.println("Don`t work");
+            System.out.println("Can`t save lemma");
         }
     }
 }

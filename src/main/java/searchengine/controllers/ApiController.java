@@ -2,9 +2,11 @@ package searchengine.controllers;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import searchengine.dto.statistics.IndexingResponse;
-import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.dto.response.IndexingResponse;
+import searchengine.dto.response.SearchResponse;
+import searchengine.dto.response.StatisticsResponse;
 import searchengine.services.IndexingService;
+import searchengine.services.SearchService;
 import searchengine.services.StatisticsService;
 
 @RestController
@@ -15,11 +17,14 @@ public class ApiController {
 
     private final IndexingService indexingService;
 
+    private final SearchService searchService;
 
-    public ApiController(StatisticsService statisticsService, IndexingService indexingService)
+
+    public ApiController(StatisticsService statisticsService, IndexingService indexingService, SearchService searchService)
     {
         this.statisticsService = statisticsService;
         this.indexingService = indexingService;
+        this.searchService = searchService;
     }
 
     @GetMapping("/statistics")
@@ -42,4 +47,20 @@ public class ApiController {
         return ResponseEntity.ok(indexingService.indexingPage(url));
     }
 
+    @GetMapping("/search")
+    @ResponseBody
+    public ResponseEntity<SearchResponse> search(@RequestParam String query,
+                                                 @RequestParam(required = false, defaultValue = "0") Integer offset,
+                                                 @RequestParam(required = false, defaultValue = "20")  Integer limit,
+                                                 @RequestParam(required = false) String site){
+
+        searchService.search(query, offset, limit, site).getData().forEach(l -> {
+            System.out.println(l.getSite() + l.getUri());
+        });
+        return ResponseEntity.ok(searchService.search(query, offset, limit, site));
+    }
+
+
 }
+
+

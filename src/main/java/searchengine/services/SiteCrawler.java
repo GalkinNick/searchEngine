@@ -3,25 +3,19 @@ package searchengine.services;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
-import searchengine.model.PageEntity;
-import searchengine.model.SiteEntity;
-import searchengine.model.Statuses;
-import searchengine.repository.PageRepository;
-import searchengine.repository.SiteRepository;
+import searchengine.model.LemmaEntity;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.RecursiveTask;
 
 //@Service
 public class SiteCrawler extends RecursiveTask<Set<String>> {
-
-
 
     //@Value("${app.connection.userAgent}")
     private String userAgent = "Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6";
@@ -31,22 +25,14 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
 
     private final String url;
 
-    private final PageRepository pageRepository;
-
-    private final SiteRepository siteRepository;
-
-
-
     private final Set<String> resltSet = new LinkedHashSet<>();
 
     @Autowired
-    public SiteCrawler(String url,
-                       PageRepository pageRepository,
-                       SiteRepository siteRepository) {
+    public SiteCrawler(String url) {
         this.url = url;
-        this.pageRepository = pageRepository;
-        this.siteRepository = siteRepository;
     }
+
+
 
 
     protected Set<String> connect(){
@@ -127,4 +113,51 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         return connection.getResponseCode();
     }
+
+    public String getPageTitle(){
+
+        String title = null;
+        try{
+            Document doc = Jsoup.connect(url).get();
+            title = doc.title();
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
+        }
+
+        return  title;
+    }
+
+    public String getSnippet(List<LemmaEntity> lemmasEntity){
+
+        StringBuilder builder = new StringBuilder();
+
+        final int START_INDEX = -3;
+        final int END_INDEX = 3;
+        int index;
+
+        String content = Jsoup.clean(getHtmlContentFromPage(url), Safelist.none());
+        String[] words = content.split(" ");
+
+        for (LemmaEntity lemmaEntity : lemmasEntity) {
+            for (int i = 0; i < words.length; i++) {
+                if (words[i].contains(lemmaEntity.getLemma())) {
+                    index = START_INDEX;
+                    while (index <= END_INDEX) {
+                        if (index == 0){
+                            builder.append("<b>" + words[i + index] + "</b>" + " ");
+                            index++;
+                        } else {
+                            builder.append(words[i + index] + " ");
+                            index++;
+                        }
+                    }
+                }
+            }
+        }
+
+        return String.valueOf(builder);
+    }
+
+
 }

@@ -17,22 +17,22 @@ import java.util.Set;
 public class SiteEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", columnDefinition = "ENUM('DEFAULT', 'INDEXING','INDEXED','FAILED')", nullable = false)
+    @Column(name = "`status`", columnDefinition = "ENUM('DEFAULT', 'INDEXING','INDEXED','FAILED')", nullable = false)
     private Statuses status;
 
-    @Column(name = "status_time", columnDefinition = "DATETIME NOT NULL", nullable = false)
+    @Column(name = "`status_time`", columnDefinition = "DATETIME", nullable = false)
     private LocalDateTime StatusTime;
 
-    @Column(name="last_error", columnDefinition = "TEXT")
+    @Column(name="`last_error`", columnDefinition = "TEXT")
     private String lastError;
 
-    @Column(name = "url", columnDefinition = "VARCHAR(255) NOT NULL", nullable = false)
+    @Column(name = "`url`", columnDefinition = "VARCHAR(255)", nullable = false)
     private String url;
 
-    @Column(name = "name", columnDefinition = "VARCHAR(255) NOT NULL", nullable = false)
+    @Column(name = "`name`", columnDefinition = "VARCHAR(255)", nullable = false)
     private String name;
 
     @OneToMany(mappedBy = "siteEntityId", cascade = CascadeType.REMOVE)

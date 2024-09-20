@@ -14,16 +14,16 @@ import javax.transaction.Transactional;
 import java.util.List;
 
 @Repository
-public interface SiteRepository extends CrudRepository<SiteEntity, Long> {
+public interface SiteRepository extends CrudRepository<SiteEntity, Integer> {
 
     @Transactional
     @Query(value = "SELECT s.id from SiteEntity s where s.url=:url")
-    Long findByUrl(@Param("url") String url);
+    Integer findByUrl(@Param("url") String url);
 
     @Modifying
     @Transactional
     @Query(value = "DELETE FROM SiteEntity s WHERE s.id =:id")
-    void deleteById(@Param("id") Long id);
+    void deleteById(@Param("id") Integer id);
 
     @Transactional
     @Query(value = "FROM SiteEntity s Where s.status =:status")
