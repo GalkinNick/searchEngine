@@ -26,7 +26,7 @@ public class LemmaEntity {
     @Column(name = "`frequency`", nullable = false)
     private int frequency;
 
-    @OneToMany(mappedBy = "lemmaId", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "lemmaId", cascade = CascadeType.REMOVE)
     private List<IndexEntity> indices;
 
 

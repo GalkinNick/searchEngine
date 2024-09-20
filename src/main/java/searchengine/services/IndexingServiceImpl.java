@@ -148,6 +148,8 @@ public class IndexingServiceImpl implements IndexingService {
         site.setName("Test");
         sites.getSites().add(site);
 
+
+
         return response;
     }
 
@@ -208,12 +210,7 @@ public class IndexingServiceImpl implements IndexingService {
                 LemmaEntity lemmaEntity = new LemmaEntity();
                 lemmaEntity.setSite(siteEntity);
                 lemmaEntity.setLemma(lemma);
-               /* if (lemma != lemmaRepository.getLemma(lemma)) {
-                    lemmaEntity.setFrequency(1);
-                } else {
-                    lemmaEntity.setFrequency(1+1);
-                }*/
-                lemmaEntity.setFrequency(1);
+                lemmaEntity.setFrequency(lemmasMap.get(lemma));
                 lemmaRepository.save(lemmaEntity);
 
                 try {
