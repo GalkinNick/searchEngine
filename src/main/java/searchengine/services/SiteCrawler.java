@@ -1,18 +1,27 @@
 package searchengine.services;
 
+import lombok.Getter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import searchengine.model.LemmaEntity;
+import searchengine.model.PageEntity;
+import searchengine.model.SiteEntity;
+import searchengine.model.IndexEntity;
+import searchengine.repository.IndexRepository;
+import searchengine.repository.LemmaRepository;
+import searchengine.repository.PageRepository;
+import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.SocketException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.RecursiveTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 //@Service
 public class SiteCrawler extends RecursiveTask<Set<String>> {
@@ -25,20 +34,37 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
 
     private final String url;
 
+    private final SiteRepository siteRepository;
+    private final PageRepository pageRepository;
+    private final LemmaRepository lemmaRepository;
+    private final IndexRepository indexRepository;
+
+    private final AtomicBoolean isRootTask;
+
+
+    @Getter
     private final Set<String> resltSet = new LinkedHashSet<>();
 
     @Autowired
-    public SiteCrawler(String url) {
+    public SiteCrawler(String url,
+                       SiteRepository siteRepository,
+                       PageRepository pageRepository,
+                       LemmaRepository lemmaRepository,
+                       IndexRepository indexRepository,
+                       AtomicBoolean isRootTask) {
         this.url = url;
+        this.siteRepository = siteRepository;
+        this.pageRepository = pageRepository;
+        this.lemmaRepository = lemmaRepository;
+        this.indexRepository = indexRepository;
+        this.isRootTask = isRootTask;
     }
-
-
 
 
     protected Set<String> connect(){
         Set<String> set = new LinkedHashSet<>();
         try{
-            Document doc = Jsoup.connect(url).timeout(40*10000)
+            Document doc = Jsoup.connect(url).timeout(0)//(int)(Math.random() * 1000))//40*10000)
                     .userAgent(userAgent)
                     .referrer(referrer)
                     .get();
@@ -47,8 +73,25 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
 
             for(Element element : links){
                 String link = element.absUrl("href").replaceAll("/$", "");
-                if(!resltSet.add(link) || !link.endsWith(".png")
-                        || !link.endsWith(".jpg") || !link.endsWith("#")) {
+                if(!resltSet.add(link) && !link.endsWith(".png")
+                        || !link.endsWith(".jpg") && !link.endsWith("#") && !link.startsWith("tel:")) {
+
+                    if (!link.trim().equals(url)){
+                        resltSet.add(link);
+                    }
+                    if (link.trim().endsWith(".pdf")) {
+                        resltSet.remove(link);
+                    }
+                    if (link.endsWith("#")){
+                        resltSet.remove(link);
+                    }
+                    if (!link.startsWith("http")){
+                        resltSet.remove(link);
+                    }
+                    if (!link.contains(url)){
+                        resltSet.remove(link);
+                    }
+
                     set.add(link);
                 }
             }
@@ -59,36 +102,95 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
         return set;
     }
 
+    private List<SiteCrawler> createSubtasks(Set<String> links){
+        return  links.stream().
+                map(link -> new SiteCrawler(link, siteRepository, pageRepository, lemmaRepository, indexRepository, isRootTask))
+                .toList();
+    }
 
     @Override
     protected Set<String> compute() {
-        try {
-            for (String link : connect()){
 
-                if (!link.trim().equals(url)){
-                    resltSet.add(link);
+        if (isRootTask.get()) {
+            try {
+                Integer siteId = siteRepository.findIdByUrl(url);
+                if (siteId != null) {
+                    SiteEntity siteEntity = siteRepository.findById(siteId).get();
+
+                    PageEntity pageEntity = createAndSavePageEntity(siteEntity, getHtmlContentFromPage(url), getResponseCode(url));
+
+                    createLemmaEntity(siteEntity, pageEntity);
                 }
-                if (link.trim().endsWith(".pdf")) {
-                    resltSet.remove(link);
+
+                List<SiteCrawler> subtasks = createSubtasks(connect());
+
+                for (SiteCrawler site : subtasks) {
+                    site.fork();
                 }
-                if (link.endsWith("#")){
-                    resltSet.remove(link);
+
+                for (SiteCrawler site : subtasks) {
+                    site.join();
                 }
-                if (!link.startsWith("http")){
-                    resltSet.remove(link);
-                }
-                if (!link.contains(url)){
-                    resltSet.remove(link);
-                }
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
 
-        } catch (Exception ex){
-            ex.printStackTrace();
         }
         return resltSet;
+
     }
 
-    public String getHtmlContentFromPage(String url){
+
+    private PageEntity createAndSavePageEntity(SiteEntity siteEntity, String htmlContent, int code){
+
+        PageEntity pageEntity = new PageEntity();
+        pageEntity.setPath(url);
+        pageEntity.setSiteEntityId(siteEntity);
+        pageEntity.setContent(htmlContent);
+        pageEntity.setCode(code);
+        pageRepository.save(pageEntity);
+
+        return pageEntity;
+    }
+
+
+      private void createLemmaEntity(SiteEntity siteEntity, PageEntity pageEntity) throws IOException {
+
+        ConvertingWordsIntoLemmas converting = new ConvertingWordsIntoLemmas();
+
+        String text = converting.removeHtmlTag(getHtmlContentFromPage(url));
+        HashMap<String, Integer> lemmasMap = converting.convertingIntoLemmas(text);
+
+        try {
+            lemmasMap.keySet().forEach(lemma -> {
+                LemmaEntity lemmaEntity = new LemmaEntity();
+                lemmaEntity.setSite(siteEntity);
+                lemmaEntity.setLemma(lemma);
+                lemmaEntity.setFrequency(lemmasMap.get(lemma));
+                lemmaRepository.save(lemmaEntity);
+
+                try {
+                    IndexEntity indexEntity = new IndexEntity();
+                    indexEntity.setPagesId(pageEntity.getId());
+                    indexEntity.setLemmaId(lemmaEntity);
+                    indexEntity.setRank((float) lemmasMap.get(lemma));
+
+                    indexRepository.save(indexEntity);
+                }
+                catch (Exception ex){
+                    ex.printStackTrace();
+                    System.out.println("Can`t save index");
+                }
+            });
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
+            System.out.println("Can`t save lemma");
+        }
+    }
+
+    private String getHtmlContentFromPage(String url){
         StringBuilder builder = new StringBuilder();
         try {
             Document doc = Jsoup.connect(url).timeout(40 * 10000)
@@ -108,56 +210,11 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
         return builder.toString();
     }
 
-    public Integer getResponseCode(String urlPage) throws IOException {
+
+    private Integer getResponseCode(String urlPage) throws IOException {
         URL url = new URL(urlPage);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         return connection.getResponseCode();
     }
-
-    public String getPageTitle(){
-
-        String title = null;
-        try{
-            Document doc = Jsoup.connect(url).get();
-            title = doc.title();
-        }
-        catch (Exception ex){
-            ex.printStackTrace();
-        }
-
-        return  title;
-    }
-
-    public String getSnippet(List<LemmaEntity> lemmasEntity){
-
-        StringBuilder builder = new StringBuilder();
-
-        final int START_INDEX = -3;
-        final int END_INDEX = 3;
-        int index;
-
-        String content = Jsoup.clean(getHtmlContentFromPage(url), Safelist.none());
-        String[] words = content.split(" ");
-
-        for (LemmaEntity lemmaEntity : lemmasEntity) {
-            for (int i = 0; i < words.length; i++) {
-                if (words[i].contains(lemmaEntity.getLemma())) {
-                    index = START_INDEX;
-                    while (index <= END_INDEX) {
-                        if (index == 0){
-                            builder.append("<b>" + words[i + index] + "</b>" + " ");
-                            index++;
-                        } else {
-                            builder.append(words[i + index] + " ");
-                            index++;
-                        }
-                    }
-                }
-            }
-        }
-
-        return String.valueOf(builder);
-    }
-
 
 }

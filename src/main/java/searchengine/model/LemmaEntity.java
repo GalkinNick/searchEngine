@@ -16,7 +16,7 @@ public class LemmaEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne(cascade = CascadeType.REMOVE)
     @JoinColumn(name = "`site_id`", columnDefinition = "INT", nullable = false)
     private SiteEntity site;
 

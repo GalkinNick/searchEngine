@@ -9,6 +9,8 @@ import searchengine.services.IndexingService;
 import searchengine.services.SearchService;
 import searchengine.services.StatisticsService;
 
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api")
 public class ApiController {
@@ -37,6 +39,7 @@ public class ApiController {
         return ResponseEntity.ok(indexingService.startIndexing());
     }
 
+    @GetMapping("/stopIndexing")
     public ResponseEntity<IndexingResponse> stopIndexing(){
         return ResponseEntity.ok(indexingService.stopIndexing());
     }
@@ -52,7 +55,7 @@ public class ApiController {
     public ResponseEntity<SearchResponse> search(@RequestParam String query,
                                                  @RequestParam(required = false, defaultValue = "0") Integer offset,
                                                  @RequestParam(required = false, defaultValue = "20")  Integer limit,
-                                                 @RequestParam(required = false) String site){
+                                                 @RequestParam(required = false) String site) throws IOException {
 
         searchService.search(query, offset, limit, site).getData().forEach(l -> {
             System.out.println(l.getSite() + l.getUri());

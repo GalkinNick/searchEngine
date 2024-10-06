@@ -23,63 +23,51 @@ public class SearchServiceImpl implements SearchService {
     private final String EMPTY_QUERY_MESSAGE = "Задан пустой поисковый запрос";
     private final String PAGE_NOT_FOUND_MESSAGE = "Указанная страница не найдена";
 
-    private HashMap<String, Integer> lemmas = new LinkedHashMap<>();
-    private HashMap <String, Integer> sortedLemmas = new HashMap<>();
-
     private List<PageEntity> pagesList = new ArrayList<>();
-
-    private HashMap<PageEntity, List<LemmaEntity>> readyPages = new HashMap<>();
-    private HashMap <PageEntity, Float> absoluteRelevance = new HashMap<>();
 
     private boolean pageNotFound = false;
 
     @Autowired
     private LemmaRepository lemmaRepository;
-
     @Autowired
     private IndexRepository indexRepository;
-
     @Autowired
     private PageRepository pageRepository;
 
     @Override
-    public SearchResponse search(String query, Integer offset, Integer limit, String site) {
+    public SearchResponse search(String query, Integer offset, Integer limit, String site) throws IOException {
 
         // черный фото карта
         // стекло черный камень фото карта
 
-        try {
-            ConvertingWordsIntoLemmas converting = new ConvertingWordsIntoLemmas();
+        ConvertingWordsIntoLemmas converting = new ConvertingWordsIntoLemmas();
 
-            //Исключать из полученного списка леммы, которые встречаются на слишком большом количестве страниц.
-            lemmas = eliminateFrequentLemma(converting.convertingIntoLemmas(query));
+        //Исключать из полученного списка леммы, которые встречаются на слишком большом количестве страниц.
+        HashMap<String, Integer> lemmas = eliminateFrequentLemma(converting.convertingIntoLemmas(query));
 
-            //сортировать леммы
-            sortedLemmas = sortLemmasInAscendingOrder(lemmas);
+        //сортировать леммы
+        HashMap<String, Integer> sortedLemmas = sortLemmasInAscendingOrder(lemmas);
 
-            //По первой, самой редкой лемме из списка, находить все страницы, на которых она встречается.
-            findPagesByFirstLemma(sortedLemmas.keySet(), site);
+        //По первой, самой редкой лемме из списка, находить все страницы, на которых она встречается.
+        String firstLemma = findPagesByFirstLemma(sortedLemmas.keySet(), site);
+        sortedLemmas.remove(firstLemma);
 
-            //поиск страниц по оставшимся леммам из списка
-            readyPages = findPagesByLemma(sortedLemmas.keySet());
+        //поиск страниц по оставшимся леммам из списка
+        HashMap<PageEntity, List<LemmaEntity>> readyPages = findPagesByLemma(sortedLemmas.keySet());
 
-            considerAbsoluteRelevance();
-        }
-        catch (IOException ex){
-            ex.printStackTrace();
-        }
+        HashMap<PageEntity, Float> absoluteRelevance = considerAbsoluteRelevance(readyPages);
 
         List<DetailedSearchItem> details = new ArrayList<>();
 
         for (Map.Entry<PageEntity, List<LemmaEntity>> page : readyPages.entrySet()){
             DetailedSearchItem detailedSearchItem = new DetailedSearchItem();
-            SiteCrawler siteCrawler = new SiteCrawler(page.getKey().getPath());
+            SiteParser siteParser = new SiteParser(page.getKey().getPath());
 
             detailedSearchItem.setSite(page.getKey().getSiteEntityId().getUrl());
             detailedSearchItem.setSiteName(page.getKey().getSiteEntityId().getName());
             detailedSearchItem.setUri(replaceUrl(page.getKey().getSiteEntityId().getUrl(), page.getKey().getPath()));;
-            detailedSearchItem.setTitle(siteCrawler.getPageTitle());
-            detailedSearchItem.setSnippet(siteCrawler.getSnippet(page.getValue()));
+            detailedSearchItem.setTitle(siteParser.getPageTitle());
+            detailedSearchItem.setSnippet(siteParser.getSnippet(page.getValue()));
             detailedSearchItem.setRelevance(absoluteRelevance.get(page.getKey()));
 
             details.add(detailedSearchItem);
@@ -134,7 +122,7 @@ public class SearchServiceImpl implements SearchService {
         catch (Exception ex){
             ex.printStackTrace();
         }
-        sortedLemmas.remove(lemma);
+
         return lemma;
     }
 
@@ -207,7 +195,9 @@ public class SearchServiceImpl implements SearchService {
     }
 
 
-    private void considerAbsoluteRelevance(){
+    private HashMap <PageEntity, Float> considerAbsoluteRelevance(HashMap<PageEntity, List<LemmaEntity>> readyPages){
+
+        HashMap <PageEntity, Float> absoluteRelevance = new HashMap<>();
 
         final float START_RELEVANCE = 0;
 
@@ -235,6 +225,8 @@ public class SearchServiceImpl implements SearchService {
             float relativeRelevance = absoluteRelevance.get(pages.getKey()) / maxEntry.get().getValue();
             relativeRelevanceMap.put(pages.getKey(), relativeRelevance);
         }
+
+        return absoluteRelevance;
     }
 
     private String replaceUrl(String url, String page){
