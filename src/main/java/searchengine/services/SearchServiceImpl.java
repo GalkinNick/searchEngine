@@ -1,6 +1,7 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.dto.response.SearchResponse;
@@ -16,14 +17,15 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SearchServiceImpl implements SearchService {
 
-    private final String EMPTY_QUERY_MESSAGE = "Задан пустой поисковый запрос";
-    private final String PAGE_NOT_FOUND_MESSAGE = "Указанная страница не найдена";
+    private static final String EMPTY_QUERY_MESSAGE = "Задан пустой поисковый запрос";
+    private static final String PAGE_NOT_FOUND_MESSAGE = "Указанная страница не найдена";
 
-    private List<PageEntity> pagesList = new ArrayList<>();
+    private final List<PageEntity> pagesList = new ArrayList<>();
 
     private boolean pageNotFound = false;
 
@@ -37,10 +39,7 @@ public class SearchServiceImpl implements SearchService {
     @Override
     public SearchResponse search(String query, Integer offset, Integer limit, String site) throws IOException {
 
-        // черный фото карта
-        // стекло черный камень фото карта
-
-        ConvertingWordsIntoLemmas converting = new ConvertingWordsIntoLemmas();
+        WordToLemmaConverter converting = new WordToLemmaConverter();
 
         //Исключать из полученного списка леммы, которые встречаются на слишком большом количестве страниц.
         HashMap<String, Integer> lemmas = eliminateFrequentLemma(converting.convertingIntoLemmas(query));
@@ -114,13 +113,12 @@ public class SearchServiceImpl implements SearchService {
                     }
                 }
                 else {
-                    System.out.println("All site");
                     pagesList.add(getPageByLemma(l));
                 }
             });
         }
-        catch (Exception ex){
-            ex.printStackTrace();
+        catch (NullPointerException ex){
+            log.warn("Failed to find the lemma - {}", ex.getMessage());
         }
 
         return lemma;
@@ -129,15 +127,14 @@ public class SearchServiceImpl implements SearchService {
     private PageEntity getPageByLemma(LemmaEntity lemmaEntity){
 
         PageEntity pageEntity =  new PageEntity();
-
         try {
             IndexEntity indexEntity = indexRepository.getIndexEntity(lemmaEntity);
             int id = indexEntity.getPagesId();
             pageEntity = pageRepository.findById(id).get();
 
         }
-        catch (Exception ex){
-            ex.printStackTrace();
+        catch (NullPointerException ex){
+            log.warn("Failed to get page - {}", ex.getMessage());
         }
         return pageEntity;
     }
@@ -203,29 +200,14 @@ public class SearchServiceImpl implements SearchService {
 
         float relevance = START_RELEVANCE;
 
-        HashMap<String, Float> rankMap = new HashMap<>();
-        HashMap <PageEntity, Float> relativeRelevanceMap = new HashMap<>();
-
         for (Map.Entry<PageEntity, List<LemmaEntity>> pages : readyPages.entrySet()) {
             for (LemmaEntity lemmaEntity : pages.getValue()) {
                 float rank = indexRepository.getRank(lemmaEntity);
-                rankMap.put(lemmaEntity.getLemma(), rank);
                 relevance += rank;
             }
             absoluteRelevance.put(pages.getKey(), relevance);
             relevance = START_RELEVANCE;
         }
-
-        Optional<Map.Entry<PageEntity, Float>> maxEntry = absoluteRelevance.entrySet()
-                .stream()
-                .max(Comparator.comparing(Map.Entry::getValue));
-
-
-        for (Map.Entry<PageEntity, List<LemmaEntity>> pages : readyPages.entrySet()) {
-            float relativeRelevance = absoluteRelevance.get(pages.getKey()) / maxEntry.get().getValue();
-            relativeRelevanceMap.put(pages.getKey(), relativeRelevance);
-        }
-
         return absoluteRelevance;
     }
 

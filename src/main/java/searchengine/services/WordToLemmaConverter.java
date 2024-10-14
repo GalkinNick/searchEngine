@@ -1,21 +1,21 @@
 package searchengine.services;
 
+
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Safelist;
-//import searchengine.model.LemmaEntity;
 
 import java.io.IOException;
 import java.util.*;
 
-public class ConvertingWordsIntoLemmas {
+public class WordToLemmaConverter {
 
     private final LuceneMorphology luceneMorphology;
     private static final String WORD_TYPE_REGEX = "\\W\\w&&[^а-яА-Я\\s]";
     private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
 
-    public ConvertingWordsIntoLemmas() throws IOException {
+    public WordToLemmaConverter() throws IOException {
         this.luceneMorphology = new RussianLuceneMorphology();
     }
 

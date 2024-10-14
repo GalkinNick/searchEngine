@@ -2,10 +2,9 @@ package searchengine.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.OnDelete;
 
 import javax.persistence.*;
-import java.util.List;
+
 
 @Getter
 @Setter
@@ -30,7 +29,5 @@ public class PageEntity {
     @Column(name = "content", columnDefinition = "MEDIUMTEXT", nullable = false)
     private String content;
 
-  /*@OneToMany(mappedBy = "pagesId", cascade = CascadeType.ALL)
-    private List<IndexEntity> indices;*/
 
 }

@@ -3,7 +3,6 @@ package searchengine.dto.response;
 import lombok.Data;
 import searchengine.dto.search.DetailedSearchItem;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Data

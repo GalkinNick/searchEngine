@@ -1,6 +1,7 @@
 package searchengine.services;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -17,20 +18,16 @@ import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.SocketException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-//@Service
+@Slf4j
 public class SiteCrawler extends RecursiveTask<Set<String>> {
 
-    //@Value("${app.connection.userAgent}")
-    private String userAgent = "Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6";
-
-    //@Value("${app.connection.referrer}")
-    private String referrer = "http://www.google.com";
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6";
+    private static final String REFERRER = "http://www.google.com";
 
     private final String url;
 
@@ -40,7 +37,7 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
     private final IndexRepository indexRepository;
 
     private final AtomicBoolean isRootTask;
-
+    private final SiteParser siteParser;
 
     @Getter
     private final Set<String> resltSet = new LinkedHashSet<>();
@@ -58,15 +55,16 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
         this.lemmaRepository = lemmaRepository;
         this.indexRepository = indexRepository;
         this.isRootTask = isRootTask;
+        siteParser = new SiteParser(url);
     }
 
 
     protected Set<String> connect(){
         Set<String> set = new LinkedHashSet<>();
         try{
-            Document doc = Jsoup.connect(url).timeout(0)//(int)(Math.random() * 1000))//40*10000)
-                    .userAgent(userAgent)
-                    .referrer(referrer)
+            Document doc = Jsoup.connect(url).timeout(0)
+                    .userAgent(USER_AGENT)
+                    .referrer(REFERRER)
                     .get();
 
             Elements links = doc.select("a[href]");
@@ -95,10 +93,9 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
                     set.add(link);
                 }
             }
-        } catch (Exception ex){
-            ex.printStackTrace();
+        } catch (IOException ex){
+            log.warn("Failed to connect - {}", ex.getMessage());
         }
-
         return set;
     }
 
@@ -117,7 +114,7 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
                 if (siteId != null) {
                     SiteEntity siteEntity = siteRepository.findById(siteId).get();
 
-                    PageEntity pageEntity = createAndSavePageEntity(siteEntity, getHtmlContentFromPage(url), getResponseCode(url));
+                    PageEntity pageEntity = createAndSavePageEntity(siteEntity, siteParser.getHtmlContentFromPage(url), getResponseCode(url));
 
                     createLemmaEntity(siteEntity, pageEntity);
                 }
@@ -132,13 +129,11 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
                     site.join();
                 }
 
-            } catch (Exception ex) {
-                ex.printStackTrace();
+            } catch (IOException ex) {
+                log.warn("Failed to create lemma - {}", ex.getMessage());
             }
-
         }
         return resltSet;
-
     }
 
 
@@ -157,9 +152,9 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
 
       private void createLemmaEntity(SiteEntity siteEntity, PageEntity pageEntity) throws IOException {
 
-        ConvertingWordsIntoLemmas converting = new ConvertingWordsIntoLemmas();
+        WordToLemmaConverter converting = new WordToLemmaConverter();
 
-        String text = converting.removeHtmlTag(getHtmlContentFromPage(url));
+        String text = converting.removeHtmlTag(siteParser.getHtmlContentFromPage(url));
         HashMap<String, Integer> lemmasMap = converting.convertingIntoLemmas(text);
 
         try {
@@ -178,38 +173,15 @@ public class SiteCrawler extends RecursiveTask<Set<String>> {
 
                     indexRepository.save(indexEntity);
                 }
-                catch (Exception ex){
-                    ex.printStackTrace();
-                    System.out.println("Can`t save index");
+                catch (NullPointerException ex){
+                    log.warn("Failed to save index- {}", ex.getMessage());
                 }
             });
         }
-        catch (Exception ex){
-            ex.printStackTrace();
-            System.out.println("Can`t save lemma");
+        catch (NullPointerException ex){
+            log.warn("Failed to save lemma - {}", ex.getMessage());
         }
     }
-
-    private String getHtmlContentFromPage(String url){
-        StringBuilder builder = new StringBuilder();
-        try {
-            Document doc = Jsoup.connect(url).timeout(40 * 10000)
-                    .userAgent(userAgent)
-                    .referrer(referrer)
-                    .get();
-
-            Elements links = doc.select("a");
-            for (Element link : links ){
-                builder.append(link);
-            }
-
-        }
-        catch (Exception ex){
-            ex.printStackTrace();
-        }
-        return builder.toString();
-    }
-
 
     private Integer getResponseCode(String urlPage) throws IOException {
         URL url = new URL(urlPage);

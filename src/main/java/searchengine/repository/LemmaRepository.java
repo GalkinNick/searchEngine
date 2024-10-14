@@ -10,7 +10,6 @@ import java.util.List;
 
 public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
 
-    //@Modifying
     @Transactional
     @Query(value = "FROM LemmaEntity l WHERE l.lemma =:findLemma")
     List<LemmaEntity> getListLemmas(@Param("findLemma") String findLemma);

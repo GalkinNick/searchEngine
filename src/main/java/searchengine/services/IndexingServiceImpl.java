@@ -1,6 +1,7 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
@@ -13,11 +14,13 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class IndexingServiceImpl implements IndexingService {
@@ -33,7 +36,7 @@ public class IndexingServiceImpl implements IndexingService {
     @Autowired
     private IndexRepository indexRepository;
 
-    private ForkJoinPool forkJoinPool = new ForkJoinPool();
+    private final ForkJoinPool forkJoinPool = new ForkJoinPool();
 
     private static final AtomicBoolean stopFlag = new AtomicBoolean(false);
 
@@ -79,8 +82,8 @@ public class IndexingServiceImpl implements IndexingService {
                 }
             }
 
-        } catch (Exception e){
-            e.printStackTrace();
+        } catch (NullPointerException ex){
+            log.warn("Failed to index the site - {}", ex.getMessage());
         }
         return response;
     }
@@ -149,9 +152,8 @@ public class IndexingServiceImpl implements IndexingService {
                 siteRepository.delete(siteEntity);
             }
         }
-        catch (Exception ex){
-            ex.printStackTrace();
-            System.out.println("Site not found");
+        catch (NullPointerException ex){
+            log.warn("Site not found - {}", ex.getMessage());
         }
     }
 

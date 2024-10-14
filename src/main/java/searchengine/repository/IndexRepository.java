@@ -7,7 +7,7 @@ import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 
 import javax.transaction.Transactional;
-import java.util.List;
+
 
 public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
 

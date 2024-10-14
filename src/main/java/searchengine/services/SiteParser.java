@@ -1,5 +1,6 @@
 package searchengine.services;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -7,15 +8,14 @@ import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
 import searchengine.model.LemmaEntity;
 
+import java.io.IOException;
 import java.util.List;
 
+@Slf4j
 public class SiteParser {
 
-    //@Value("${app.connection.userAgent}")
-    private String userAgent = "Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6";
-
-    //@Value("${app.connection.referrer}")
-    private String referrer = "http://www.google.com";
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6";
+    private static final String REFERRER = "http://www.google.com";
 
     private final String url;
 
@@ -27,8 +27,8 @@ public class SiteParser {
         StringBuilder builder = new StringBuilder();
         try {
             Document doc = Jsoup.connect(url).timeout(40 * 10000)
-                    .userAgent(userAgent)
-                    .referrer(referrer)
+                    .userAgent(USER_AGENT)
+                    .referrer(REFERRER)
                     .get();
 
             Elements links = doc.select("a");
@@ -37,29 +37,26 @@ public class SiteParser {
             }
 
         }
-        catch (Exception ex){
-            ex.printStackTrace();
+        catch (IOException ex){
+            log.warn("Failed to get HTML content - {}", ex.getMessage());
         }
         return builder.toString();
     }
 
 
     public String getPageTitle(){
-
         String title = null;
         try{
             Document doc = Jsoup.connect(url).get();
             title = doc.title();
         }
-        catch (Exception ex){
-            ex.printStackTrace();
+        catch (IOException ex){
+            log.warn("Failed to get page title - {}", ex.getMessage());
         }
-
         return  title;
     }
 
     public String getSiteName(){
-
         String siteName = "null";
         if (url.startsWith("http://")){
             url.replace("/", "");

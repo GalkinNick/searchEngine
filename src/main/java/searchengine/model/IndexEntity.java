@@ -17,11 +17,7 @@ public class IndexEntity {
     @Column(name = "`page_id`")
     private Integer pagesId;
 
-   /* @ManyToOne
-    @JoinColumn(name = "page_id", columnDefinition = "INT", nullable = false)
-    private PageEntity pageId;*/
-
-   @ManyToOne
+    @ManyToOne
     @JoinColumn(name ="`lemma_id`", columnDefinition = "INTEGER", nullable = false)
     private LemmaEntity lemmaId;
 
