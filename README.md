@@ -3,7 +3,7 @@
 
 Для использования проекта был использованн следующий стек технологий:
 
-IntelliJ IDEA — интегрированная среда разработки программного обеспечения [Скачать]([Ссылка](https://www.jetbrains.com/idea/download/?section=windows))
+IntelliJ IDEA — интегрированная среда разработки программного обеспечения [Скачать](https://www.jetbrains.com/idea/download/?section=windows)
 MySQL Workbench — универсальный инструмент для работы и управления базами данных [Скачать](https://dev.mysql.com/downloads/workbench/)
 
 
