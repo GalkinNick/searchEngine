@@ -4,8 +4,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.w3c.dom.ls.LSOutput;
 import searchengine.dto.response.SearchResponse;
 import searchengine.dto.search.DetailedSearchItem;
+import searchengine.dto.search.PageFoundState;
+import searchengine.dto.search.SearchPages;
 import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
@@ -25,9 +28,8 @@ public class SearchServiceImpl implements SearchService {
     private static final String EMPTY_QUERY_MESSAGE = "Задан пустой поисковый запрос";
     private static final String PAGE_NOT_FOUND_MESSAGE = "Указанная страница не найдена";
 
-    private final List<PageEntity> pagesList = new ArrayList<>();
-
-    private boolean pageNotFound = false;
+    private final PageFoundState pageFoundState = new PageFoundState();
+    private final SearchPages searchPages = new SearchPages();
 
     @Autowired
     private LemmaRepository lemmaRepository;
@@ -38,6 +40,8 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public SearchResponse search(String query, Integer offset, Integer limit, String site) throws IOException {
+
+
 
         WordToLemmaConverter converting = new WordToLemmaConverter();
 
@@ -74,11 +78,11 @@ public class SearchServiceImpl implements SearchService {
 
         SearchResponse searchResponse = new SearchResponse();
 
-        if (!query.isEmpty()) {
+        if (!query.isEmpty() && !pageFoundState.isPageNotFound()) {
             searchResponse.setResult(true);
             searchResponse.setCount(readyPages.size());
             searchResponse.setData(details);
-        } else if (pageNotFound){
+        } else if (pageFoundState.isPageNotFound()){
             searchResponse.setResult(false);
             searchResponse.setError(PAGE_NOT_FOUND_MESSAGE);
         }
@@ -99,28 +103,36 @@ public class SearchServiceImpl implements SearchService {
     }
 
     private String findPagesByFirstLemma(Set<String> lemmasSet, String site){
-        String lemma = lemmasSet.iterator().next();
-        pagesList.clear();
+        String lemma = null;
+        List<PageEntity> pageEntityList = new ArrayList<>();
+
+        if (!lemmasSet.isEmpty()) {
+            lemma = lemmasSet.iterator().next();
+        } else {
+            pageFoundState.setPageNotFound(true);
+        }
 
         try {
             lemmaRepository.getListLemmas(lemma).forEach(l -> {
                 if (site != null) {
                     if (l.getSite().getUrl().equals(site)) {
-                       pagesList.add(getPageByLemma(l));
+                       pageEntityList.add(getPageByLemma(l));
                     }
                     else {
-                        pageNotFound = true;
+                        pageFoundState.setPageNotFound(true);
                     }
                 }
                 else {
-                    pagesList.add(getPageByLemma(l));
+                    pageEntityList.add(getPageByLemma(l));
                 }
             });
         }
         catch (NullPointerException ex){
+            pageFoundState.setPageNotFound(true);
             log.warn("Failed to find the lemma - {}", ex.getMessage());
         }
 
+        searchPages.setPageEntityList(pageEntityList);
         return lemma;
     }
 
@@ -146,11 +158,16 @@ public class SearchServiceImpl implements SearchService {
         final int MIN_VALUE = 0;
         int pageCount = 0;
 
+
         for (Map.Entry<String, Integer> lemma : lemmaMap.entrySet()) {
 
             List<LemmaEntity> listLemma = lemmaRepository.getListLemmas(lemma.getKey());
 
-            allLemma.put(lemma.getKey(), listLemma.size());
+            if (listLemma != null) {
+                allLemma.put(lemma.getKey(), listLemma.size());
+            } else {
+                pageFoundState.setPageNotFound(true);
+            }
         }
 
         for (Map.Entry<String, Integer> lemma : allLemma.entrySet()){
@@ -174,13 +191,14 @@ public class SearchServiceImpl implements SearchService {
 
         if (lemmas.size() > MIN_LEMMAS) {
            for (String lemma : lemmas){
-               for (int i = 0; i < pagesList.size(); i++) {
-                   int finaly = i;
+               for (int i = 0; i < searchPages.getPageEntityList().size(); i++) {
+                   int finalIndex = i;
                     lemmaRepository.getListLemmas(lemma).forEach(l -> {
                        PageEntity pageEntity = getPageByLemma(l);
-                       if (pageEntity.getPath().equals(pagesList.get(finaly).getPath())){
+                       PageEntity searchPage = searchPages.getPageEntityList().get(finalIndex);
+                       if (pageEntity.getPath().equals(searchPage.getPath())){
                            lemmaEntities.add(l);
-                           pagesMap.put(pagesList.get(finaly), lemmaEntities);
+                           pagesMap.put(searchPage, lemmaEntities);
                        }
                    });
                }
