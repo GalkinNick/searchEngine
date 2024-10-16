@@ -25,7 +25,12 @@
   
   ![image](https://github.com/user-attachments/assets/f4be93fe-de70-4ae8-a366-5c49678d84ba)
   
-- В файле application.yaml в корне проекта и пропишите в нём в явном виде порт, по которому будет доступно веб-приложение, а также данные доступа к MySQL-серверу
+- В файле application.yaml в корне проекта и пропишите в нём в явном виде порт, по которому будет доступно веб-приложение, а также данные доступа к MySQL-серверу:
+
+  ![image](https://github.com/user-attachments/assets/09b2627b-68b6-46eb-a626-0e25df996c28)
+
+  
+
 
 
 
