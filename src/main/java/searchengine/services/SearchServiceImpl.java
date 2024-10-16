@@ -41,8 +41,6 @@ public class SearchServiceImpl implements SearchService {
     @Override
     public SearchResponse search(String query, Integer offset, Integer limit, String site) throws IOException {
 
-
-
         WordToLemmaConverter converting = new WordToLemmaConverter();
 
         //Исключать из полученного списка леммы, которые встречаются на слишком большом количестве страниц.

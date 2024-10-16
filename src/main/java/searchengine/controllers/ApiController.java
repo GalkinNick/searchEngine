@@ -57,9 +57,6 @@ public class ApiController {
                                                  @RequestParam(required = false, defaultValue = "20")  Integer limit,
                                                  @RequestParam(required = false) String site) throws IOException {
 
-        /*searchService.search(query, offset, limit, site).getData().forEach(l -> {
-            System.out.println(l.getSite() + l.getUri());
-        });*/
         return ResponseEntity.ok(searchService.search(query, offset, limit, site));
     }
 
